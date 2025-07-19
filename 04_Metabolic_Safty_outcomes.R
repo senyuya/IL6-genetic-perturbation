@@ -442,7 +442,7 @@ outcome_files <- list.files(
 all_results <- list()
 
 # Set adjustment factor
-adjustment_factor <- 0.76
+adjustment_factor <- log(0.76)
 
 # Loop through each metabolite file and perform MR analysis
 for (file in outcome_files) {
