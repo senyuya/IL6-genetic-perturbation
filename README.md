@@ -21,11 +21,13 @@ Assess infection risk, hematological traits, and safety profiles
 ### 6. Phenome-wide Association Study
 Comprehensive analysis across 2,469 clinical outcomes in FinnGen
 
-
-
 ## Requirements
 - R ≥ 4.4.3
 - Required packages: TwoSampleMR, MendelianRandomization, coloc, data.table, dplyr, metafor
 
 ## Data Sources
 GWAS summary statistics from public consortia. See Supplementary Table 1 in the manuscript for detailed information on all datasets used.
+
+**Contact**
+For questions about the analysis or data, please contact:
+- Lanyue Zhang - Lanyue.Zhang@med.uni-muenchen.de / zhanglanyue1996@gmail.com
