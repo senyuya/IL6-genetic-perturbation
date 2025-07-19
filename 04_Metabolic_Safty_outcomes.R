@@ -351,7 +351,7 @@ write.csv(ivw_fe1, "res/binary_results.csv")
 write.csv(ivw_fe1, "res/continuous_results.csv")
 
 # =============================================================================
-# Metabolite Mendelian Randomization Analysis
+# Metabolites 
 # =============================================================================
 # Load required packages
 library(TwoSampleMR)   # For Mendelian Randomization analysis
