@@ -1,5 +1,4 @@
-# IL6 Genetic Perturbation and Cardiovascular Risk
-
+# IL6 genetic perturbation mimicking IL-6 inhibition is associated with lower cardiometabolic risk 
 This repository contains the analysis code for our study on genetic perturbation of IL6 mimicking IL-6 inhibition and its association with cardiometabolic risk. We developed a robust genetic proxy for IL-6 signaling downregulation and used it to predict the effects of IL-6 inhibition on cardiovascular and safety endpoints.
 
 ## Analysis Workflow
