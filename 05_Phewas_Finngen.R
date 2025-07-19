@@ -110,7 +110,11 @@ IL6R_exp <- format_data(IL6R,
 # Load manifest
 finngen_r12 <- fread("finngen_R12_manifest.tsv", data.table = FALSE)
 
-# Function to merge files
+# Note: Merge phenotype-specific GWAS files that were pre-filtered on the server 
+# to include only SNPs overlapping with IL6/IL6R instruments.
+# This script assumes the filtered files are already saved locally as .txt/.csv.
+
+
 merge_files_correctly <- function(file_list, mapping_df, source_type) {
   combined_df <- data.frame()
   
