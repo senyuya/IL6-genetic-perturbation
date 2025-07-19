@@ -10,72 +10,7 @@ library(RColorBrewer)
 library(export)
 
 # ============================================================================
-# 1. MR Analysis Function
-# ============================================================================
-MR_function <- function(exposure.data, outcome.data, outcome_name) {
-  # Format outcome data
-  outcome_data <- outcome.data %>%
-    rename(
-      SNP = "rsids",
-      beta.outcome = "beta",
-      se.outcome = "sebeta",
-      effect_allele.outcome = "alt",
-      other_allele.outcome = "ref",
-      eaf.outcome = "af_alt",
-      pval.outcome = "pval"
-    ) %>%
-    mutate(
-      id.outcome = outcome_name,
-      outcome = outcome_name
-    )
-  
-  # Format for TwoSampleMR
-  outcome_formatted <- format_data(
-    outcome_data,
-    type = "outcome",
-    phenotype_col = "phenotype",
-    snp_col = "SNP",
-    beta_col = "beta.outcome",
-    se_col = "se.outcome",
-    pval_col = "pval.outcome",
-    effect_allele_col = "effect_allele.outcome",
-    eaf_col = "eaf.outcome",
-    other_allele_col = "other_allele.outcome"
-  )
-  
-  # Harmonize data
-  final.data <- harmonise_data(exposure.data, outcome_formatted, action = 1)
-  final.data <- final.data[!duplicated(final.data),]
-  
-  # Perform MR analysis
-  results <- mr(final.data, method_list = c("mr_ivw_fe", "mr_ivw", "mr_egger_regression", "mr_weighted_median"))
-  
-  # Add additional statistics
-  results$SNPs <- nrow(final.data)
-  results$OR <- exp(results$b)
-  results$LCI <- exp(results$b - 1.96 * results$se)
-  results$UCI <- exp(results$b + 1.96 * results$se)
-  
-  # Heterogeneity and pleiotropy tests
-  heterogeneity <- mr_heterogeneity(final.data)
-  pleiotropy <- mr_pleiotropy_test(final.data)
-  
-  # Add test results
-  results$IVW.Qpval <- heterogeneity$Q_pval[2]
-  results$IVW.Q_df <- heterogeneity$Q_df[2]
-  results$IVW.Q <- heterogeneity$Q[2]
-  results$Mr_Egger.Qpval <- heterogeneity$Q_pval[1]
-  results$Mr_Egger.Q_df <- heterogeneity$Q_df[1]
-  results$Mr_Egger.Q <- heterogeneity$Q[1]
-  results$pleiotropy.pval <- pleiotropy$pval
-  results$pleiotropy.intercept <- pleiotropy$egger_intercept
-  results$pleiotropy.se <- pleiotropy$se
-  
-  return(results)
-}
-
-# ============================================================================
-# 2. Load Exposure Data
+# 1. Load Exposure Data
 # ============================================================================
 # Load IL6 exposure
 IL6 <- fread("IL6_12SNP_instrument.txt", data.table = FALSE) 
@@ -105,7 +40,7 @@ IL6R_exp <- format_data(IL6R,
   mutate(exposure = 'IL6R')
 
 # ============================================================================
-# 3. Load Outcome Data
+# 2. Load Outcome Data
 # ============================================================================
 # Load manifest
 finngen_r12 <- fread("finngen_R12_manifest.tsv", data.table = FALSE)
@@ -151,7 +86,7 @@ il6_combined <- merge_files_correctly(il6_files, finngen_r12, "IL6")
 il6r_combined <- merge_files_correctly(il6r_files, finngen_r12, "IL6R")
 
 # ============================================================================
-# 4. Format outcome data and run MR
+# 3. Format outcome data and run MR
 # ============================================================================
 # Format outcome data
 outcome_il6 <- format_data(
@@ -189,7 +124,7 @@ MR_il6 <- mr(har_il6, method_list = c("mr_ivw_fe", "mr_ivw", "mr_egger_regressio
 MR_il6r <- mr(har_il6r, method_list = c("mr_ivw_fe", "mr_ivw", "mr_egger_regression", "mr_weighted_median"))
 
 # ============================================================================
-# 5. Select appropriate method and apply FDR correction
+# 4. Select appropriate method and apply FDR correction
 # ============================================================================
 # Filter for appropriate IVW method based on heterogeneity
 il6_filtered_data <- MR_il6 %>%
@@ -218,7 +153,7 @@ MR_il6r_ivwfe <- il6r_filtered_data[, c(1:7)] %>%
   mutate(pval_adjust = p.adjust(pval, method = "BH"))
 
 # ============================================================================
-# 6. Add disease categories and prepare for plotting
+# 5. Add disease categories and prepare for plotting
 # ============================================================================
 # Add categories for IL6
 match_indices <- match(MR_il6_ivwfe$outcome, il6_combined$phenotype)
@@ -231,7 +166,7 @@ MR_il6r_ivwfe$group_narrow <- il6r_combined$category[match_indices]
 MR_il6r_ivwfe$neg_log10_qpvalue <- -log10(MR_il6r_ivwfe$pval_adjust)
 
 # ============================================================================
-# 7. Create broad disease groups (your mapping)
+# 6. Create broad disease groups 
 # ============================================================================
 # Create simplified names mapping
 simplified_names <- c(
@@ -391,9 +326,9 @@ check_mapping(MR_il6_ivwfe, "IL6")
 check_mapping(MR_il6r_ivwfe, "IL6R")
 
 # ============================================================================
-# 8. Manhattan Plot (your original style)
+# 7. Manhattan Plot 
 # ============================================================================
-# Define disease group order (add your groups here)
+# Define disease group order 
 desired_order <- c(
   "Infectious diseases", 
   "Blood/immune diseases", 
@@ -419,11 +354,11 @@ data_processed <- MR_il6r_ivwfe %>%  # Change to MR_il6_ivwfe for IL6 analysis
   arrange(broad_group, neg_log10_qpvalue) %>%
   mutate(Chromosome = row_number())
 
-# Create colors (your original method)
+# Create colors
 broad_group_colors <- colorRampPalette(RColorBrewer::brewer.pal(12, "Set3"))(length(unique(data_processed$broad_group)))
 names(broad_group_colors) <- levels(data_processed$broad_group)
 
-# Manhattan plot (your original code)
+# Manhattan plot
 manhattan_plot <- ggplot(data_processed, aes(
   x = Chromosome,
   y = neg_log10_qpvalue,
@@ -480,7 +415,7 @@ print(manhattan_plot)
 graph2ppt(x = manhattan_plot, file = "manhattan_plotil6.pptx", width = 21, height = 18)
 
 # ============================================================================
-# 9. Save results
+# 8. Save results
 # ============================================================================
 write.xlsx(MR_il6_ivwfe, "MR_res_il6_ivwfe_finngen.xlsx")
 write.xlsx(MR_il6r_ivwfe, "MR_res_il6r_ivwfe_finngen.xlsx")
