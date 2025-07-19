@@ -78,9 +78,7 @@ MR_function <- function(exposure.data, outcome.data, outcome_name) {
 # 2. Load Exposure Data
 # ============================================================================
 # Load IL6 exposure
-IL6 <- fread("IL6_12SNP_instrument.txt", data.table = FALSE) %>%
-  mutate(eaf = ifelse(maf < 0.5, maf, 1 - maf))
-IL6[12, 14] <- "22836963"
+IL6 <- fread("IL6_12SNP_instrument.txt", data.table = FALSE) 
 
 IL6_exp <- format_data(IL6, 
                        effect_allele_col = 'effect_allele', 
