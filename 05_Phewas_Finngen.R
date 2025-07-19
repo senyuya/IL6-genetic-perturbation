@@ -485,10 +485,5 @@ write.xlsx(MR_il6r_ivwfe, "MR_res_il6r_ivwfe_finngen.xlsx")
 write.xlsx(il6_combined, "il6_combined.xlsx")
 write.xlsx(il6r_combined, "il6r_combined.xlsx")
 
-# Example usage (add your desired_order and label data):
-# desired_order <- c("your", "disease", "groups", "here")
-# manhattan_plot <- create_manhattan_plot(MR_il6_ivwfe, desired_order, newww_phewas_figure_forlabel)
-# print(manhattan_plot)
-# graph2ppt(x = manhattan_plot, file = "manhattan_plotil6.pptx", width = 21, height = 18)
-
-print("Analysis completed. Modify the disease group mapping and plotting section as needed.")
+# MR analysis code for External validation same as previous analyses, not provided here
+# GWAS data sources see Supplementary Table 16
