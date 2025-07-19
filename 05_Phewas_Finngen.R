@@ -177,8 +177,8 @@ outcome_il6r <- format_data(
 )
 
 # Harmonize data
-har_il6 <- harmonise_data(IL6_exp, outcome_il6, action = 2)
-har_il6r <- harmonise_data(IL6R_exp, outcome_il6r, action = 2)
+har_il6 <- harmonise_data(IL6_exp, outcome_il6, action = 1)
+har_il6r <- harmonise_data(IL6R_exp, outcome_il6r, action = 1)
 
 # Perform MR analysis
 MR_il6 <- mr(har_il6, method_list = c("mr_ivw_fe", "mr_ivw", "mr_egger_regression", "mr_weighted_median"))
