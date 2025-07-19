@@ -10,7 +10,31 @@ library(RColorBrewer)
 library(export)
 
 # ============================================================================
-# 1. Load Exposure Data
+# 1. MR Analysis Function
+# ============================================================================
+MR_function <- function(exposure.data, outcome.data) {
+  # Harmonize data
+  final.data <- harmonise_data(exposure.data, outcome.data, action = 1)
+  final.data <- final.data[!duplicated(final.data),]
+  
+  # Perform MR analysis
+  results <- mr(final.data, method_list = c("mr_ivw_fe", "mr_ivw", "mr_egger_regression", "mr_weighted_median"))
+  # Heterogeneity and pleiotropy tests
+  heterogeneity <- mr_heterogeneity(final.data)
+  pleiotropy <- mr_pleiotropy_test(final.data)
+  
+  # Add test results
+  ivw_qpval <- heterogeneity$Q_pval[heterogeneity$method == "Inverse variance weighted"]
+  results$IVW.Qpval <- ivw_qpval
+  results$pleiotropy.pval <- pleiotropy$pval
+  results$pleiotropy.intercept <- pleiotropy$egger_intercept
+  results$pleiotropy.se <- pleiotropy$se
+  
+  return(results)
+}
+
+# ============================================================================
+# 2. Load Exposure Data
 # ============================================================================
 # Load IL6 exposure
 IL6 <- fread("IL6_12SNP_instrument.txt", data.table = FALSE) 
@@ -26,21 +50,8 @@ IL6_exp <- format_data(IL6,
                        pval_col = 'pval.exposure') %>% 
   mutate(exposure = 'IL6')
 
-# Load IL6R exposure  
-IL6R <- fread("IL6R_26SNP_instrument.csv", data.table = FALSE)
-IL6R_exp <- format_data(IL6R, 
-                        effect_allele_col = 'effect_allele', 
-                        other_allele_col = 'other_allele',
-                        type = 'exposure', 
-                        se_col = 'stderr', 
-                        snp_col = 'SNP', 
-                        eaf_col = "eaf",
-                        beta_col = 'beta', 
-                        pval_col = 'pval') %>% 
-  mutate(exposure = 'IL6R')
-
 # ============================================================================
-# 2. Load Outcome Data
+# 3. Load Outcome Data
 # ============================================================================
 # Load manifest
 finngen_r12 <- fread("finngen_R12_manifest.tsv", data.table = FALSE)
@@ -49,7 +60,6 @@ finngen_r12 <- fread("finngen_R12_manifest.tsv", data.table = FALSE)
 # to include only SNPs overlapping with IL6/IL6R instruments.
 # This script assumes the filtered files are already saved locally as .txt/.csv.
 
-
 merge_files_correctly <- function(file_list, mapping_df, source_type) {
   combined_df <- data.frame()
   
@@ -57,7 +67,7 @@ merge_files_correctly <- function(file_list, mapping_df, source_type) {
     data <- read.csv(file_path, stringsAsFactors = FALSE, sep = "\t")
     file_name <- basename(file_path)
     file_base <- tools::file_path_sans_ext(file_name)
-    phenocode <- sub("^(IL6R?_finngen_R12_)(.*)$", "\\2", file_base)
+    phenocode <- sub("^(IL6?_finngen_R12_)(.*)$", "\\2", file_base)
     
     mapping_info <- mapping_df %>% filter(phenocode == !!phenocode)
     
@@ -79,14 +89,12 @@ merge_files_correctly <- function(file_list, mapping_df, source_type) {
 
 # Get file lists
 il6_files <- list.files("IL6_results/", pattern = "^IL6_finngen_R12_.*\\.(csv|txt)$", full.names = TRUE)
-il6r_files <- list.files("IL6R_results/", pattern = "^IL6R_finngen_R12_.*\\.(csv|txt)$", full.names = TRUE)
 
 # Merge data
 il6_combined <- merge_files_correctly(il6_files, finngen_r12, "IL6")
-il6r_combined <- merge_files_correctly(il6r_files, finngen_r12, "IL6R")
 
 # ============================================================================
-# 3. Format outcome data and run MR
+# 4. Format outcome data and run MR
 # ============================================================================
 # Format outcome data
 outcome_il6 <- format_data(
@@ -101,27 +109,14 @@ outcome_il6 <- format_data(
   eaf_col = "af_alt",
   other_allele_col = 'ref'
 )
-
-outcome_il6r <- format_data(
-  il6r_combined,
-  type = "outcome",
-  phenotype_col = "phenotype",
-  snp_col = "rsids",
-  beta_col = "beta",
-  se_col = "sebeta",
-  pval_col = "pval",
-  effect_allele_col = "alt",
-  eaf_col = "af_alt",
-  other_allele_col = 'ref'
-)
-
 # Harmonize data
 har_il6 <- harmonise_data(IL6_exp, outcome_il6, action = 1)
-har_il6r <- harmonise_data(IL6R_exp, outcome_il6r, action = 1)
 
 # Perform MR analysis
 MR_il6 <- mr(har_il6, method_list = c("mr_ivw_fe", "mr_ivw", "mr_egger_regression", "mr_weighted_median"))
-MR_il6r <- mr(har_il6r, method_list = c("mr_ivw_fe", "mr_ivw", "mr_egger_regression", "mr_weighted_median"))
+
+# OR MR_function()
+MR_il6 = MR_function(IL6_exp, outcome_il6)
 
 # ============================================================================
 # 4. Select appropriate method and apply FDR correction
@@ -129,16 +124,7 @@ MR_il6r <- mr(har_il6r, method_list = c("mr_ivw_fe", "mr_ivw", "mr_egger_regress
 # Filter for appropriate IVW method based on heterogeneity
 il6_filtered_data <- MR_il6 %>%
   group_by(exposure, outcome) %>%
-  filter(if (any(method == "Inverse variance weighted" & Q_pval < 0.05)) {
-    method == "Inverse variance weighted"
-  } else {
-    method == "Inverse variance weighted (fixed effects)"
-  }) %>%
-  ungroup()
-
-il6r_filtered_data <- MR_il6r %>%
-  group_by(exposure, outcome) %>%
-  filter(if (any(method == "Inverse variance weighted" & Q_pval < 0.05)) {
+  filter(if (any(method == "Inverse variance weighted" & IVW.Qpval < 0.05)) {
     method == "Inverse variance weighted"
   } else {
     method == "Inverse variance weighted (fixed effects)"
@@ -146,11 +132,9 @@ il6r_filtered_data <- MR_il6r %>%
   ungroup()
 
 # Select key columns and apply FDR correction
-MR_il6_ivwfe <- il6_filtered_data[, c(1:7)] %>%
-  mutate(pval_adjust = p.adjust(pval, method = "BH"))
-
-MR_il6r_ivwfe <- il6r_filtered_data[, c(1:7)] %>%
-  mutate(pval_adjust = p.adjust(pval, method = "BH"))
+MR_il6_ivwfe <- il6_filtered_data[, c("outcome", "exposure", "method", 
+                                      "nsnp", "b", "se", "pval")] 
+MR_il6_ivwfe$pval_adjust = p.adjust(MR_il6_ivwfe$pval, method = "BH")
 
 # ============================================================================
 # 5. Add disease categories and prepare for plotting
@@ -159,11 +143,6 @@ MR_il6r_ivwfe <- il6r_filtered_data[, c(1:7)] %>%
 match_indices <- match(MR_il6_ivwfe$outcome, il6_combined$phenotype)
 MR_il6_ivwfe$group_narrow <- il6_combined$category[match_indices]
 MR_il6_ivwfe$neg_log10_qpvalue <- -log10(MR_il6_ivwfe$pval_adjust)
-
-# Add categories for IL6R
-match_indices <- match(MR_il6r_ivwfe$outcome, il6r_combined$phenotype)
-MR_il6r_ivwfe$group_narrow <- il6r_combined$category[match_indices]
-MR_il6r_ivwfe$neg_log10_qpvalue <- -log10(MR_il6r_ivwfe$pval_adjust)
 
 # ============================================================================
 # 6. Create broad disease groups 
@@ -294,12 +273,6 @@ MR_il6_ivwfe <- MR_il6_ivwfe %>%
     broad_group = broad_groups[group_narrow_simplified]
   )
 
-# Apply mappings to IL6R data
-MR_il6r_ivwfe <- MR_il6r_ivwfe %>%
-  mutate(
-    group_narrow_simplified = simplified_names[group_narrow],
-    broad_group = broad_groups[group_narrow_simplified]
-  )
 
 # Check for unmapped groups
 check_mapping <- function(data, data_name) {
@@ -323,7 +296,7 @@ check_mapping <- function(data, data_name) {
 }
 
 check_mapping(MR_il6_ivwfe, "IL6")
-check_mapping(MR_il6r_ivwfe, "IL6R")
+
 
 # ============================================================================
 # 7. Manhattan Plot 
@@ -349,7 +322,7 @@ desired_order <- c(
 )
 
 # Use your data (replace with MR_il6_ivwfe or MR_il6r_ivwfe as needed)
-data_processed <- MR_il6r_ivwfe %>%  # Change to MR_il6_ivwfe for IL6 analysis
+data_processed <- MR_il6_ivwfe %>% 
   mutate(broad_group = factor(broad_group, levels = desired_order)) %>%
   arrange(broad_group, neg_log10_qpvalue) %>%
   mutate(Chromosome = row_number())
